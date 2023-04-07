@@ -84,45 +84,70 @@ def position_birth_search(position, age, cur, conn):
 
 
 # [EXTRA CREDIT]
-# You’ll make 3 new functions, make_winners_table(), make_seasons_table(),
-# and winners_since_search(), 
-# and then write at least 2 meaningful test cases for each of them. 
-
-#     The first function takes 3 arguments: JSON data, 
-#     the database cursor, and the database connection object.
-#     It makes a table with 2 columns:
-#         id (datatype: int; Primary key) -- note this comes from the JSON
-#         name (datatype: text) -- note: use the full, not short, name
-#     hint: look at how we made the Positions table above for an example
-
-#     The second function takes the same 3 arguments: JSON data, 
-#     the database cursor, and the database connection object. 
-#     It iterates through the JSON data to get info 
-#     about previous Premier League seasons (don't include the current one)
-#     and loads all of the seasons into a database table 
-#     called ‘Seasons' with the following columns:
-#         id (datatype: int; Primary key) - note this comes from the JSON
-#         winner_id (datatype: text)
-#         end_year (datatype: int)
-#     NOTE: Skip seasons with no winner!
-
-#     To find the winner_id for each season, you will have to 
-#     look up the winner's name in the Winners table
-#     see make_winners_table above for details
-    
-#     The third function takes in a year (string), the database cursor, 
-#     and the database connection object. It returns a dictionary of how many 
-#     times each team has won the Premier League since the passed year.
-#     In the dict, each winning team's (full) name is a key,
-#     and the value associated with each team is the number of times
-#     they have won since the year passed, including the season that ended
-#     the passed year. 
-
 def make_winners_table(data, cur, conn):
-    pass
+    cur.execute('''DROP TABLE IF EXISTS Winners''')
+    cur.execute('''CREATE TABLE Winners (id INTEGER PRIMARY KEY, name TEXT UNIQUE)''')
+    # cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT UNIQUE)")  # not gonna make changed to the table
+
+    id_list = []
+    name_list = []
+    for season_dict in data['seasons']:
+        if season_dict['winner'] != None:
+            w_id = season_dict['winner']['id']
+            if w_id not in id_list:
+                id_list.append(w_id)
+            
+            w_name = season_dict['winner']['name']
+            if w_name not in name_list:
+                name_list.append(w_name)
+
+    for i in range(len(id_list)):
+        # I saw on Piazza that we are asked to put consecutive in id column
+        cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (id_list[i], name_list[i]))
+        # if id is consecutive:
+        # cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (i, name_list[i]))  # leads to dif sequence of rows
+    conn.commit()
+
+    # for season_dict in data['seasons']:
+    #     w_id = season_dict['winner']['id']
+    #     if season_dict['winner'] != None:
+    #         w_name = season_dict['winner']['name']
+    #         
+    #         exp: w_id: 27 pieces; w_name: 8 pieces. But since we ignore, the 21 pieces are not gonna added (given the same team name and id)
+    #         cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (w_id, w_name))
+    # conn.commit()
+
 
 def make_seasons_table(data, cur, conn):
-    pass
+    cur.execute('''DROP TABLE IF EXISTS Seasons''')
+    # cur.execute('''CREATE TABLE Seasons (id INTEGER PRIMARY KEY, winner_id TEXT, end_year INTEGER)''')
+    cur.execute('''CREATE TABLE Seasons (id INTEGER PRIMARY KEY, winner_id TEXT UNIQUE, end_year INTEGER UNIQUE)''')
+    
+    id_list = []
+    winner_id_list = []
+    end_year_list = []
+    for season_dict in data['seasons']:
+        if season_dict['winner'] != None:
+            s_id = season_dict['id']
+            id_list.append(s_id)
+            # if s_id not in id_list:
+            #     id_list.append(s_id)
+            
+            w_id = str(season_dict['winner']['id'])
+            winner_id_list.append(w_id)
+            # if w_id not in winner_id_list:
+            #     winner_id_list.append(w_id)
+
+            end_y = int(season_dict['endDate'][:4])
+            end_year_list.append(end_y)
+            # if end_y not in end_year_list:
+            #     end_year_list.append(end_y)
+
+    for i in range(len(id_list)):
+        cur.execute('''INSERT OR IGNORE INTO Seasons (id, winner_id, end_year) VALUES(?,?,?)''', 
+                    (id_list[i], winner_id_list[i], end_year_list[i]))
+    conn.commit()
+
 
 def winners_since_search(year, cur, conn):
     pass
@@ -179,11 +204,16 @@ class TestAllMethods(unittest.TestCase):
         self.assertEqual(c, [('Teden Mengi', 'Defence', 2002)])
     
     # test extra credit
-    # def test_make_winners_table(self):
-    #     self.cur2.execute('SELECT * from Winners')
-    #     winners_list = self.cur2.fetchall()
+    def test_make_winners_table(self):
+        self.cur2.execute('SELECT * from Winners')
+        winners_list = self.cur2.fetchall()
 
-    #     pass
+        self.assertEqual(len(winners_list), 7)
+        self.assertEqual(len(winners_list[0]),2)
+        self.assertIs(type(winners_list[0][0]), int)
+        self.assertIs(winners_list[2][0], 61)                 #[row][column]
+        self.assertIs(type(winners_list[0][1]), str)
+        self.assertEqual(winners_list[2][1], 'Chelsea FC')    # dif: is and equal?
 
     # def test_make_seasons_table(self):
     #     self.cur2.execute('SELECT * from Seasons')
@@ -216,4 +246,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    unittest.main(verbosity = 2)
+    # unittest.main(verbosity = 2)
