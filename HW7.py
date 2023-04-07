@@ -102,7 +102,6 @@ def make_winners_table(data, cur, conn):
                 name_list.append(w_name)
 
     for i in range(len(id_list)):
-        # I saw on Piazza that we are asked to put consecutive in id column
         cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (id_list[i], name_list[i]))
         # if id is consecutive:
         # cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (i, name_list[i]))  # leads to dif sequence of rows
@@ -120,8 +119,7 @@ def make_winners_table(data, cur, conn):
 
 def make_seasons_table(data, cur, conn):
     cur.execute('''DROP TABLE IF EXISTS Seasons''')
-    # cur.execute('''CREATE TABLE Seasons (id INTEGER PRIMARY KEY, winner_id TEXT, end_year INTEGER)''')
-    cur.execute('''CREATE TABLE Seasons (id INTEGER PRIMARY KEY, winner_id TEXT UNIQUE, end_year INTEGER UNIQUE)''')
+    cur.execute('''CREATE TABLE Seasons (id INTEGER PRIMARY KEY, winner_id TEXT, end_year INTEGER)''')
     
     id_list = []
     winner_id_list = []
@@ -130,27 +128,28 @@ def make_seasons_table(data, cur, conn):
         if season_dict['winner'] != None:
             s_id = season_dict['id']
             id_list.append(s_id)
-            # if s_id not in id_list:
-            #     id_list.append(s_id)
             
             w_id = str(season_dict['winner']['id'])
             winner_id_list.append(w_id)
-            # if w_id not in winner_id_list:
-            #     winner_id_list.append(w_id)
 
             end_y = int(season_dict['endDate'][:4])
             end_year_list.append(end_y)
-            # if end_y not in end_year_list:
-            #     end_year_list.append(end_y)
 
     for i in range(len(id_list)):
         cur.execute('''INSERT OR IGNORE INTO Seasons (id, winner_id, end_year) VALUES(?,?,?)''', 
-                    (id_list[i], winner_id_list[i], end_year_list[i]))
+                    (id_list[i], winner_id_list[i], end_year_list[i]))   # ignore the combination that's duplicate
     conn.commit()
 
 
 def winners_since_search(year, cur, conn):
-    pass
+    d = {}
+    year_int = int(year)
+    cur.execute('''SELECT Winners.name FROM Seasons JOIN Winners ON Winners.id = Seasons.winner_id 
+    WHERE Seasons.end_year >= ?''', (year_int,))
+    winner_list = cur.fetchall()
+    for i in winner_list:
+        d[i[0]] = d.get(i[0], 0) + 1
+    return d
 
 
 class TestAllMethods(unittest.TestCase):
@@ -203,6 +202,7 @@ class TestAllMethods(unittest.TestCase):
         self.assertEqual(len(c), 1)
         self.assertEqual(c, [('Teden Mengi', 'Defence', 2002)])
     
+
     # test extra credit
     def test_make_winners_table(self):
         self.cur2.execute('SELECT * from Winners')
@@ -211,19 +211,31 @@ class TestAllMethods(unittest.TestCase):
         self.assertEqual(len(winners_list), 7)
         self.assertEqual(len(winners_list[0]),2)
         self.assertIs(type(winners_list[0][0]), int)
-        self.assertIs(winners_list[2][0], 61)                 #[row][column]
+        self.assertEqual(winners_list[2][0], 61)                 #[row][column]
         self.assertIs(type(winners_list[0][1]), str)
         self.assertEqual(winners_list[2][1], 'Chelsea FC')    # dif: is and equal?
 
-    # def test_make_seasons_table(self):
-    #     self.cur2.execute('SELECT * from Seasons')
-    #     seasons_list = self.cur2.fetchall()
 
-        pass
+    def test_make_seasons_table(self):
+        self.cur2.execute('SELECT * from Seasons')
+        seasons_list = self.cur2.fetchall()
+
+        self.assertEqual(len(seasons_list), 28)
+        self.assertEqual(len(seasons_list[0]),3)
+        self.assertIs(type(seasons_list[0][0]), int)
+        self.assertEqual(seasons_list[2][0], 254)
+        self.assertIs(type(seasons_list[0][1]), str)
+        self.assertEqual(seasons_list[2][1], '59')
+        self.assertIs(type(seasons_list[0][2]), int)
+        self.assertEqual(seasons_list[2][2], 1995)
+        self.assertEqual(seasons_list[10][2], 2011)
+
 
     def test_winners_since_search(self):
-
-        pass
+        d = winners_since_search("2019", self.cur2, self.conn2)
+        self.assertEqual(len(d), 2)
+        self.assertEqual(d["Manchester City FC"], 2)
+        self.assertEqual(d["Liverpool FC"], 1)
 
 
 def main():
@@ -241,9 +253,10 @@ def main():
     cur2, conn2 = open_database('Football_seasons.db')
     make_winners_table(seasons_json_data, cur2, conn2)
     make_seasons_table(seasons_json_data, cur2, conn2)
+    winners_since_search("1999", cur2, conn2)
     conn2.close()
 
 
 if __name__ == "__main__":
-    main()
-    # unittest.main(verbosity = 2)
+    # main()
+    unittest.main(verbosity = 2)
