@@ -73,7 +73,6 @@ def birthyear_nationality_search(age, country, cur, conn):
     return birth_n_list
 
 
-## [TASK 4]: 15 points
 def position_birth_search(position, age, cur, conn):
     p_birth_list = []
     age_year = 2023 - age
@@ -104,7 +103,7 @@ def make_winners_table(data, cur, conn):
     for i in range(len(id_list)):
         cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (id_list[i], name_list[i]))
         # if id is consecutive:
-        # cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (i, name_list[i]))  # leads to dif sequence of rows
+        # cur.execute('''INSERT OR IGNORE INTO Winners (id, name) VALUES(?,?)''', (i, name_list[i]))
     conn.commit()
 
     # for season_dict in data['seasons']:
